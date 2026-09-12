@@ -115,6 +115,238 @@
 				}
 			});
 		</script>
+		<style>
+			#extraModsPanel {
+				position: fixed;
+				top: 16px;
+				right: 16px;
+				width: 260px;
+				max-height: 80vh;
+				overflow-y: auto;
+				background: rgba(27,31,40,0.9);
+				border: 1px solid #2f3647;
+				border-radius: 8px;
+				padding: 14px;
+				font-family: "JetBrains Mono", monospace;
+				color: #f2f5ff;
+				z-index: 999999;
+				display: none;
+				box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(225,183,65,0.15);
+			}
+			#extraModsPanel.open { display: block; }
+			#extraModsPanel h3 {
+				margin: 0 0 10px;
+				font-size: 12px;
+				letter-spacing: 0.08em;
+				color: #e1b741;
+				text-transform: uppercase;
+				border-bottom: 1px solid #2f3647;
+				padding-bottom: 8px;
+			}
+			#extraModsPanel .hint-key {
+				float: right;
+				color: #aab3c7;
+				font-weight: normal;
+				text-transform: none;
+			}
+			#extraModsPanel .mod-row {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 7px 4px;
+				font-size: 12px;
+				border-bottom: 1px solid rgba(47,54,71,0.5);
+			}
+			#extraModsPanel .mod-row:last-child { border-bottom: none; }
+			#extraModsPanel .mod-name { color: #aab3c7; }
+			#extraModsPanel .switch {
+				width: 34px; height: 18px;
+				background: #232937;
+				border: 1px solid #2f3647;
+				border-radius: 10px;
+				position: relative;
+				cursor: pointer;
+				flex-shrink: 0;
+				transition: background 0.15s ease, border-color 0.15s ease;
+			}
+			#extraModsPanel .switch::after {
+				content: "";
+				position: absolute;
+				top: 1px; left: 1px;
+				width: 14px; height: 14px;
+				border-radius: 50%;
+				background: #aab3c7;
+				transition: transform 0.15s ease, background 0.15s ease;
+			}
+			#extraModsPanel .switch.on { background: rgba(225,183,65,0.18); border-color: #e1b741; }
+			#extraModsPanel .switch.on::after { transform: translateX(16px); background: #e1b741; }
+
+			#extraModsHint {
+				position: fixed;
+				bottom: 10px;
+				right: 14px;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 11px;
+				color: rgba(170,179,199,0.55);
+				z-index: 999998;
+				pointer-events: none;
+			}
+			#extraHudBox {
+				position: fixed;
+				top: 16px;
+				left: 16px;
+				z-index: 999997;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 12px;
+				color: #e1b741;
+				text-shadow: 0 0 4px rgba(0,0,0,0.8);
+				line-height: 1.6;
+				pointer-events: none;
+			}
+			#extraCrosshair {
+				position: fixed;
+				top: 50%; left: 50%;
+				width: 14px; height: 14px;
+				margin: -7px 0 0 -7px;
+				pointer-events: none;
+				z-index: 999997;
+				display: none;
+			}
+			#extraCrosshair::before, #extraCrosshair::after { content: ""; position: absolute; background: #e1b741; }
+			#extraCrosshair::before { top: 6px; left: 0; width: 14px; height: 2px; }
+			#extraCrosshair::after { left: 6px; top: 0; width: 2px; height: 14px; }
+
+			#extraKeystrokes {
+				position: fixed;
+				bottom: 16px;
+				left: 16px;
+				z-index: 999997;
+				display: none;
+				font-family: "JetBrains Mono", monospace;
+			}
+			#extraKeystrokes .key-row { display: flex; gap: 4px; margin-bottom: 4px; }
+			#extraKeystrokes .key {
+				width: 32px; height: 32px;
+				display: flex; align-items: center; justify-content: center;
+				background: rgba(27,31,40,0.8);
+				border: 1px solid #2f3647;
+				border-radius: 4px;
+				color: #aab3c7;
+				font-size: 12px;
+			}
+			#extraKeystrokes .key.active { background: rgba(225,183,65,0.28); border-color: #e1b741; color: #e1b741; }
+		</style>
 	</head>
-	<body style="margin:0px;width:100%;height:100%;overflow:hidden;background-color:black;" id="game_frame"></body>
+	<body style="margin:0px;width:100%;height:100%;overflow:hidden;background-color:black;" id="game_frame">
+		<div id="extraModsPanel">
+			<h3>Extra Mods <span class="hint-key">[K]</span></h3>
+			<div class="mod-row"><span class="mod-name">FPS Counter</span><div class="switch" data-mod="fps"></div></div>
+			<div class="mod-row"><span class="mod-name">CPS Counter</span><div class="switch" data-mod="cps"></div></div>
+			<div class="mod-row"><span class="mod-name">Clock</span><div class="switch" data-mod="clock"></div></div>
+			<div class="mod-row"><span class="mod-name">Crosshair</span><div class="switch" data-mod="crosshair"></div></div>
+			<div class="mod-row"><span class="mod-name">Fullbright</span><div class="switch" data-mod="fullbright"></div></div>
+			<div class="mod-row"><span class="mod-name">Keystrokes</span><div class="switch" data-mod="keystrokes"></div></div>
+			<div class="mod-row"><span class="mod-name">Zoom (hold Z + scroll)</span><div class="switch" data-mod="zoom"></div></div>
+		</div>
+		<div id="extraModsHint">Press K for Extra Mods</div>
+		<div id="extraHudBox"></div>
+		<div id="extraCrosshair"></div>
+		<div id="extraKeystrokes">
+			<div class="key-row"><div class="key" id="ek-w">W</div></div>
+			<div class="key-row"><div class="key" id="ek-a">A</div><div class="key" id="ek-s">S</div><div class="key" id="ek-d">D</div></div>
+		</div>
+
+		<script>
+		(function() {
+			"use strict";
+			var state = { fps:false, cps:false, clock:false, crosshair:false, fullbright:false, keystrokes:false, zoom:false };
+			var panel = document.getElementById("extraModsPanel");
+			var crosshairEl = document.getElementById("extraCrosshair");
+			var keysEl = document.getElementById("extraKeystrokes");
+			var hud = document.getElementById("extraHudBox");
+
+			function getCanvas() {
+				return document.querySelector("._eaglercraftX_canvas_element") || document.querySelector("canvas");
+			}
+
+			panel.querySelectorAll(".switch").forEach(function(sw) {
+				sw.addEventListener("click", function() {
+					var mod = sw.getAttribute("data-mod");
+					state[mod] = !state[mod];
+					sw.classList.toggle("on", state[mod]);
+					applyMod(mod, state[mod]);
+				});
+			});
+
+			function applyMod(mod, on) {
+				if (mod === "crosshair") crosshairEl.style.display = on ? "block" : "none";
+				if (mod === "keystrokes") keysEl.style.display = on ? "block" : "none";
+				if (mod === "fullbright") {
+					var c = getCanvas();
+					if (c) c.style.filter = on ? "brightness(1.6) contrast(1.05)" : "";
+				}
+			}
+
+			// K 键打开/关闭额外模组面板
+			window.addEventListener("keydown", function(e) {
+				if ((e.key === "k" || e.key === "K") && !e.repeat) {
+					panel.classList.toggle("open");
+				}
+				if (state.keystrokes) {
+					var k = e.key.toLowerCase();
+					var el = document.getElementById("ek-" + k);
+					if (el) el.classList.add("active");
+				}
+				if (e.key === "z" || e.key === "Z") zHeld = true;
+			});
+			window.addEventListener("keyup", function(e) {
+				var k = e.key.toLowerCase();
+				var el = document.getElementById("ek-" + k);
+				if (el) el.classList.remove("active");
+				if (e.key === "z" || e.key === "Z") zHeld = false;
+			});
+
+			// CPS 计数
+			var clicks = 0, cpsDisplay = 0;
+			window.addEventListener("mousedown", function() { clicks++; });
+			setInterval(function() { cpsDisplay = clicks; clicks = 0; }, 1000);
+
+			// FPS 计数
+			var frames = 0, fpsDisplay = 0, lastFpsTime = performance.now();
+			function fpsLoop() {
+				frames++;
+				var now = performance.now();
+				if (now - lastFpsTime >= 1000) {
+					fpsDisplay = frames;
+					frames = 0;
+					lastFpsTime = now;
+				}
+				requestAnimationFrame(fpsLoop);
+			}
+			requestAnimationFrame(fpsLoop);
+
+			// HUD 渲染循环
+			function renderHud() {
+				var lines = [];
+				if (state.fps) lines.push("FPS: " + fpsDisplay);
+				if (state.cps) lines.push("CPS: " + cpsDisplay);
+				if (state.clock) lines.push(new Date().toLocaleTimeString());
+				hud.innerHTML = lines.join("<br>");
+				requestAnimationFrame(renderHud);
+			}
+			requestAnimationFrame(renderHud);
+
+			// 按住 Z 滚动鼠标滚轮进行视觉缩放（仅缩放画面，不影响实际游戏视角）
+			var zHeld = false, zoomLevel = 1;
+			window.addEventListener("wheel", function(e) {
+				if (!state.zoom || !zHeld) return;
+				e.preventDefault();
+				zoomLevel += (e.deltaY < 0 ? 0.1 : -0.1);
+				zoomLevel = Math.max(1, Math.min(4, zoomLevel));
+				var c = getCanvas();
+				if (c) c.style.transform = "scale(" + zoomLevel + ")";
+			}, { passive: false });
+		})();
+		</script>
+	</body>
 </html>
