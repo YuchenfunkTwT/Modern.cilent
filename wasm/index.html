@@ -181,6 +181,24 @@
 			#extraModsPanel .switch.on { background: rgba(225,183,65,0.18); border-color: #e1b741; }
 			#extraModsPanel .switch.on::after { transform: translateX(16px); background: #e1b741; }
 
+			#autoClickerInput {
+				width: 100%;
+				padding: 4px;
+				background: #232937;
+				border: 1px solid #2f3647;
+				border-radius: 4px;
+				color: #aab3c7;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 11px;
+				margin-top: 4px;
+				box-sizing: border-box;
+			}
+			#autoClickerInput:focus {
+				outline: none;
+				border-color: #e1b741;
+				color: #e1b741;
+			}
+
 			#extraModsHint {
 				position: fixed;
 				bottom: 10px;
@@ -247,6 +265,12 @@
 			<div class="mod-row"><span class="mod-name">Fullbright</span><div class="switch" data-mod="fullbright"></div></div>
 			<div class="mod-row"><span class="mod-name">Keystrokes</span><div class="switch" data-mod="keystrokes"></div></div>
 			<div class="mod-row"><span class="mod-name">Zoom (hold Z + scroll)</span><div class="switch" data-mod="zoom"></div></div>
+			<div class="mod-row"><span class="mod-name">Auto Clicker</span><div class="switch" data-mod="autoclicker"></div></div>
+			<div id="autoClickerSettings" style="display:none;padding-top:8px;border-top:1px solid #2f3647;margin-top:8px;">
+				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;">CPS:</div>
+				<input type="number" id="autoClickerInput" value="10" min="1" max="100" />
+				<div style="font-size:10px;color:#888;margin-top:2px;">1-100 clicks per second</div>
+			</div>
 		</div>
 		<div id="extraModsHint">Press K for Extra Mods</div>
 		<div id="extraHudBox"></div>
@@ -259,11 +283,14 @@
 		<script>
 		(function() {
 			"use strict";
-			var state = { fps:false, cps:false, clock:false, crosshair:false, fullbright:false, keystrokes:false, zoom:false };
+			var state = { fps:false, cps:false, clock:false, crosshair:false, fullbright:false, keystrokes:false, zoom:false, autoclicker:false };
 			var panel = document.getElementById("extraModsPanel");
 			var crosshairEl = document.getElementById("extraCrosshair");
 			var keysEl = document.getElementById("extraKeystrokes");
 			var hud = document.getElementById("extraHudBox");
+			var autoClickerSettings = document.getElementById("autoClickerSettings");
+			var autoClickerInput = document.getElementById("autoClickerInput");
+			var autoClickInterval = null;
 
 			function getCanvas() {
 				return document.querySelector("._eaglercraftX_canvas_element") || document.querySelector("canvas");
@@ -285,7 +312,49 @@
 					var c = getCanvas();
 					if (c) c.style.filter = on ? "brightness(1.6) contrast(1.05)" : "";
 				}
+				if (mod === "autoclicker") {
+					autoClickerSettings.style.display = on ? "block" : "none";
+					if (on) startAutoClicker();
+					else stopAutoClicker();
+				}
 			}
+
+			function startAutoClicker() {
+				stopAutoClicker();
+				var cps = parseInt(autoClickerInput.value) || 10;
+				var interval = 1000 / cps;
+				autoClickInterval = setInterval(function() {
+					var canvas = getCanvas();
+					if (canvas) {
+						var evt = new MouseEvent("mousedown", {
+							bubbles: true,
+							cancelable: true,
+							view: window,
+							clientX: canvas.width / 2,
+							clientY: canvas.height / 2
+						});
+						canvas.dispatchEvent(evt);
+						setTimeout(function() {
+							var evtUp = new MouseEvent("mouseup", {
+								bubbles: true,
+								cancelable: true,
+								view: window,
+								clientX: canvas.width / 2,
+								clientY: canvas.height / 2
+							});
+							canvas.dispatchEvent(evtUp);
+						}, 10);
+					}
+				}, interval);
+			}
+
+			function stopAutoClicker() {
+				if (autoClickInterval) clearInterval(autoClickInterval);
+			}
+
+			autoClickerInput.addEventListener("change", function() {
+				if (state.autoclicker) startAutoClicker();
+			});
 
 			// K 键打开/关闭额外模组面板
 			window.addEventListener("keydown", function(e) {
