@@ -11,6 +11,157 @@
 		<meta property="og:title" content="Eaglercraft 1.12 WASM-GC" />
 		<meta property="og:description" content="test directory HTML page" />
 		<link type="image/png" rel="shortcut icon" href="favicon.png" />
+		<style>
+			#extraModsPanel {
+				position: fixed;
+				top: 16px;
+				right: 16px;
+				width: 260px;
+				max-height: 80vh;
+				overflow-y: auto;
+				background: rgba(27,31,40,0.9);
+				border: 1px solid #2f3647;
+				border-radius: 8px;
+				padding: 14px;
+				font-family: "JetBrains Mono", monospace;
+				color: #f2f5ff;
+				z-index: 10000000;
+				display: none;
+				box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(225,183,65,0.15);
+			}
+			#extraModsPanel.open { display: block; }
+			#extraModsPanel h3 {
+				margin: 0 0 10px;
+				font-size: 12px;
+				letter-spacing: 0.08em;
+				color: #e1b741;
+				text-transform: uppercase;
+				border-bottom: 1px solid #2f3647;
+				padding-bottom: 8px;
+			}
+			#extraModsPanel .hint-key {
+				float: right;
+				color: #aab3c7;
+				font-weight: normal;
+				text-transform: none;
+			}
+			#extraModsPanel .mod-row {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 7px 4px;
+				font-size: 12px;
+				border-bottom: 1px solid rgba(47,54,71,0.5);
+			}
+			#extraModsPanel .mod-row:last-child { border-bottom: none; }
+			#extraModsPanel .mod-name { color: #aab3c7; }
+			#extraModsPanel .switch {
+				width: 34px; height: 18px;
+				background: #232937;
+				border: 1px solid #2f3647;
+				border-radius: 10px;
+				position: relative;
+				cursor: pointer;
+				flex-shrink: 0;
+				transition: background 0.15s ease, border-color 0.15s ease;
+			}
+			#extraModsPanel .switch::after {
+				content: "";
+				position: absolute;
+				top: 1px; left: 1px;
+				width: 14px; height: 14px;
+				border-radius: 50%;
+				background: #aab3c7;
+				transition: transform 0.15s ease, background 0.15s ease;
+			}
+			#extraModsPanel .switch.on { background: rgba(225,183,65,0.18); border-color: #e1b741; }
+			#extraModsPanel .switch.on::after { transform: translateX(16px); background: #e1b741; }
+
+			#autoClickerInput, #autoClickerVariance, #autoClickerMode {
+				width: 100%;
+				padding: 4px;
+				background: #232937;
+				border: 1px solid #2f3647;
+				border-radius: 4px;
+				color: #aab3c7;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 11px;
+				margin-top: 4px;
+				box-sizing: border-box;
+			}
+			#autoClickerInput:focus, #autoClickerVariance:focus, #autoClickerMode:focus {
+				outline: none;
+				border-color: #e1b741;
+				color: #e1b741;
+			}
+			#autoClickerMode option {
+				background: #232937;
+				color: #aab3c7;
+			}
+
+			#extraModsHint {
+				position: fixed;
+				bottom: 10px;
+				right: 14px;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 11px;
+				color: rgba(170,179,199,0.55);
+				z-index: 9999999;
+				pointer-events: none;
+			}
+			#extraHudBox {
+				position: fixed;
+				top: 16px;
+				left: 16px;
+				z-index: 9999998;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 12px;
+				color: #e1b741;
+				text-shadow: 0 0 4px rgba(0,0,0,0.8);
+				line-height: 1.6;
+				pointer-events: none;
+			}
+			
+			#extraCrosshair {
+				position: fixed;
+				top: 50%; 
+				left: 50%;
+				width: 16px; 
+				height: 16px;
+				margin: -8px 0 0 -8px;
+				pointer-events: none;
+				z-index: 9999997;
+				display: none;
+				image-rendering: pixelated;
+				image-rendering: crisp-edges;
+			}
+			
+			#extraCrosshair canvas {
+				width: 16px;
+				height: 16px;
+				display: block;
+			}
+
+			#extraKeystrokes {
+				position: fixed;
+				bottom: 16px;
+				left: 16px;
+				z-index: 9999998;
+				display: none;
+				font-family: "JetBrains Mono", monospace;
+			}
+			#extraKeystrokes .key-row { display: flex; gap: 4px; margin-bottom: 4px; }
+			#extraKeystrokes .key {
+				width: 32px; height: 32px;
+				display: flex; align-items: center; justify-content: center;
+				background: rgba(27,31,40,0.8);
+				border: 1px solid #2f3647;
+				border-radius: 4px;
+				color: #aab3c7;
+				font-size: 12px;
+			}
+			#extraKeystrokes .key.active { background: rgba(225,183,65,0.28); border-color: #e1b741; color: #e1b741; }
+		</style>
 		<script type="text/javascript">
 			"use strict";
 			window.addEventListener("load", async function() {
@@ -112,197 +263,228 @@
 					scriptElement.type = "text/javascript";
 					scriptElement.src = "eagruntime.js?v=2.0.3";
 					document.head.appendChild(scriptElement);
+					
+					// Initialize mods system
+					setTimeout(initModsSystem, 500);
 				}
 			});
+
+			function initModsSystem() {
+				var state = { fps:false, cps:false, clock:false, crosshair:false, fullbright:false, keystrokes:false, zoom:false, autoclicker:false };
+				var panel = document.getElementById("extraModsPanel");
+				var crosshairEl = document.getElementById("extraCrosshair");
+				var keysEl = document.getElementById("extraKeystrokes");
+				var hud = document.getElementById("extraHudBox");
+				var autoClickerSettings = document.getElementById("autoClickerSettings");
+				var autoClickerInput = document.getElementById("autoClickerInput");
+				var autoClickerVariance = document.getElementById("autoClickerVariance");
+				var autoClickerMode = document.getElementById("autoClickerMode");
+				var autoClickInterval = null;
+				var crosshairCanvas = null;
+				var crosshairCtx = null;
+
+				function getCanvas() {
+					return document.querySelector("canvas");
+				}
+
+				function initCrosshair() {
+					if (crosshairCanvas) return;
+					crosshairCanvas = document.createElement("canvas");
+					crosshairCanvas.width = 16;
+					crosshairCanvas.height = 16;
+					crosshairCtx = crosshairCanvas.getContext("2d");
+					crosshairEl.appendChild(crosshairCanvas);
+					drawCrosshair();
+				}
+
+				function drawCrosshair() {
+					if (!crosshairCtx) return;
+					crosshairCtx.clearRect(0, 0, 16, 16);
+					crosshairCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
+					crosshairCtx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+					crosshairCtx.lineWidth = 1;
+					crosshairCtx.fillRect(7, 1, 2, 3);
+					crosshairCtx.fillRect(7, 12, 2, 3);
+					crosshairCtx.fillRect(1, 7, 3, 2);
+					crosshairCtx.fillRect(12, 7, 3, 2);
+					crosshairCtx.fillRect(7, 7, 2, 2);
+					crosshairCtx.strokeRect(7, 1, 2, 3);
+					crosshairCtx.strokeRect(7, 12, 2, 3);
+					crosshairCtx.strokeRect(1, 7, 3, 2);
+					crosshairCtx.strokeRect(12, 7, 3, 2);
+					crosshairCtx.strokeRect(7, 7, 2, 2);
+				}
+
+				if (panel) {
+					panel.querySelectorAll(".switch").forEach(function(sw) {
+						sw.addEventListener("click", function() {
+							var mod = sw.getAttribute("data-mod");
+							state[mod] = !state[mod];
+							sw.classList.toggle("on", state[mod]);
+							applyMod(mod, state[mod]);
+						});
+					});
+				}
+
+				function applyMod(mod, on) {
+					if (mod === "crosshair") {
+						if (on) {
+							initCrosshair();
+							crosshairEl.style.display = "block";
+						} else {
+							crosshairEl.style.display = "none";
+						}
+					}
+					if (mod === "keystrokes") keysEl.style.display = on ? "block" : "none";
+					if (mod === "fullbright") {
+						var c = getCanvas();
+						if (c) c.style.filter = on ? "brightness(1.6) contrast(1.05)" : "";
+					}
+					if (mod === "autoclicker") {
+						autoClickerSettings.style.display = on ? "block" : "none";
+						if (on) startAutoClicker();
+						else stopAutoClicker();
+					}
+				}
+
+				function getRandomizedInterval() {
+					var baseCps = parseInt(autoClickerInput.value) || 10;
+					var variance = parseInt(autoClickerVariance.value) || 15;
+					var varianceRange = (variance / 100) * baseCps;
+					var randomCps = baseCps + (Math.random() * 2 - 1) * varianceRange;
+					randomCps = Math.max(1, randomCps);
+					return 1000 / randomCps;
+				}
+
+				function performClick() {
+					var canvas = getCanvas();
+					if (canvas) {
+						var button = autoClickerMode.value === "right" ? 2 : 0;
+						var evt = new MouseEvent("mousedown", {
+							bubbles: true,
+							cancelable: true,
+							view: window,
+							clientX: canvas.width / 2,
+							clientY: canvas.height / 2,
+							button: button
+						});
+						canvas.dispatchEvent(evt);
+						setTimeout(function() {
+							var evtUp = new MouseEvent("mouseup", {
+								bubbles: true,
+								cancelable: true,
+								view: window,
+								clientX: canvas.width / 2,
+								clientY: canvas.height / 2,
+								button: button
+							});
+							canvas.dispatchEvent(evtUp);
+						}, 10);
+					}
+				}
+
+				function scheduleNextClick() {
+					if (!state.autoclicker) return;
+					var delay = getRandomizedInterval();
+					autoClickInterval = setTimeout(function() {
+						performClick();
+						scheduleNextClick();
+					}, delay);
+				}
+
+				function startAutoClicker() {
+					stopAutoClicker();
+					performClick();
+					scheduleNextClick();
+				}
+
+				function stopAutoClicker() {
+					if (autoClickInterval) {
+						clearTimeout(autoClickInterval);
+						autoClickInterval = null;
+					}
+				}
+
+				autoClickerInput.addEventListener("change", function() {
+					if (state.autoclicker) {
+						stopAutoClicker();
+						startAutoClicker();
+					}
+				});
+
+				autoClickerVariance.addEventListener("change", function() {
+					if (state.autoclicker) {
+						stopAutoClicker();
+						startAutoClicker();
+					}
+				});
+
+				autoClickerMode.addEventListener("change", function() {
+					if (state.autoclicker) {
+						stopAutoClicker();
+						startAutoClicker();
+					}
+				});
+
+				document.addEventListener("keydown", function(e) {
+					if ((e.key === "k" || e.key === "K") && !e.repeat) {
+						e.preventDefault();
+						e.stopPropagation();
+						if (panel) panel.classList.toggle("open");
+					}
+					if (state.keystrokes) {
+						var k = e.key.toLowerCase();
+						var el = document.getElementById("ek-" + k);
+						if (el) el.classList.add("active");
+					}
+					if (e.key === "z" || e.key === "Z") window.zHeld = true;
+				}, true);
+
+				document.addEventListener("keyup", function(e) {
+					var k = e.key.toLowerCase();
+					var el = document.getElementById("ek-" + k);
+					if (el) el.classList.remove("active");
+					if (e.key === "z" || e.key === "Z") window.zHeld = false;
+				}, true);
+
+				var clicks = 0, cpsDisplay = 0;
+				document.addEventListener("mousedown", function() { clicks++; }, true);
+				setInterval(function() { cpsDisplay = clicks; clicks = 0; }, 1000);
+
+				var frames = 0, fpsDisplay = 0, lastFpsTime = performance.now();
+				function fpsLoop() {
+					frames++;
+					var now = performance.now();
+					if (now - lastFpsTime >= 1000) {
+						fpsDisplay = frames;
+						frames = 0;
+						lastFpsTime = now;
+					}
+					requestAnimationFrame(fpsLoop);
+				}
+				requestAnimationFrame(fpsLoop);
+
+				function renderHud() {
+					var lines = [];
+					if (state.fps) lines.push("FPS: " + fpsDisplay);
+					if (state.cps) lines.push("CPS: " + cpsDisplay);
+					if (state.clock) lines.push(new Date().toLocaleTimeString());
+					if (hud) hud.innerHTML = lines.join("<br>");
+					requestAnimationFrame(renderHud);
+				}
+				requestAnimationFrame(renderHud);
+
+				var zoomLevel = 1;
+				document.addEventListener("wheel", function(e) {
+					if (!state.zoom || !window.zHeld) return;
+					e.preventDefault();
+					zoomLevel += (e.deltaY < 0 ? 0.1 : -0.1);
+					zoomLevel = Math.max(1, Math.min(4, zoomLevel));
+					var c = getCanvas();
+					if (c) c.style.transform = "scale(" + zoomLevel + ")";
+				}, { passive: false, capture: true });
+			}
 		</script>
-		<style>
-			#extraModsPanel {
-				position: fixed;
-				top: 16px;
-				right: 16px;
-				width: 260px;
-				max-height: 80vh;
-				overflow-y: auto;
-				background: rgba(27,31,40,0.9);
-				border: 1px solid #2f3647;
-				border-radius: 8px;
-				padding: 14px;
-				font-family: "JetBrains Mono", monospace;
-				color: #f2f5ff;
-				z-index: 999999;
-				display: none;
-				box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(225,183,65,0.15);
-			}
-			#extraModsPanel.open { display: block; }
-			#extraModsPanel h3 {
-				margin: 0 0 10px;
-				font-size: 12px;
-				letter-spacing: 0.08em;
-				color: #e1b741;
-				text-transform: uppercase;
-				border-bottom: 1px solid #2f3647;
-				padding-bottom: 8px;
-			}
-			#extraModsPanel .hint-key {
-				float: right;
-				color: #aab3c7;
-				font-weight: normal;
-				text-transform: none;
-			}
-			#extraModsPanel .mod-row {
-				display: flex;
-				align-items: center;
-				justify-content: space-between;
-				padding: 7px 4px;
-				font-size: 12px;
-				border-bottom: 1px solid rgba(47,54,71,0.5);
-			}
-			#extraModsPanel .mod-row:last-child { border-bottom: none; }
-			#extraModsPanel .mod-name { color: #aab3c7; }
-			#extraModsPanel .switch {
-				width: 34px; height: 18px;
-				background: #232937;
-				border: 1px solid #2f3647;
-				border-radius: 10px;
-				position: relative;
-				cursor: pointer;
-				flex-shrink: 0;
-				transition: background 0.15s ease, border-color 0.15s ease;
-			}
-			#extraModsPanel .switch::after {
-				content: "";
-				position: absolute;
-				top: 1px; left: 1px;
-				width: 14px; height: 14px;
-				border-radius: 50%;
-				background: #aab3c7;
-				transition: transform 0.15s ease, background 0.15s ease;
-			}
-			#extraModsPanel .switch.on { background: rgba(225,183,65,0.18); border-color: #e1b741; }
-			#extraModsPanel .switch.on::after { transform: translateX(16px); background: #e1b741; }
-
-			#autoClickerInput {
-				width: 100%;
-				padding: 4px;
-				background: #232937;
-				border: 1px solid #2f3647;
-				border-radius: 4px;
-				color: #aab3c7;
-				font-family: "JetBrains Mono", monospace;
-				font-size: 11px;
-				margin-top: 4px;
-				box-sizing: border-box;
-			}
-			#autoClickerInput:focus {
-				outline: none;
-				border-color: #e1b741;
-				color: #e1b741;
-			}
-
-			#autoClickerVariance {
-				width: 100%;
-				padding: 4px;
-				background: #232937;
-				border: 1px solid #2f3647;
-				border-radius: 4px;
-				color: #aab3c7;
-				font-family: "JetBrains Mono", monospace;
-				font-size: 11px;
-				margin-top: 4px;
-				box-sizing: border-box;
-			}
-			#autoClickerVariance:focus {
-				outline: none;
-				border-color: #e1b741;
-				color: #e1b741;
-			}
-
-			#autoClickerMode {
-				width: 100%;
-				padding: 4px;
-				background: #232937;
-				border: 1px solid #2f3647;
-				border-radius: 4px;
-				color: #aab3c7;
-				font-family: "JetBrains Mono", monospace;
-				font-size: 11px;
-				margin-top: 4px;
-				box-sizing: border-box;
-			}
-			#autoClickerMode:focus {
-				outline: none;
-				border-color: #e1b741;
-				color: #e1b741;
-			}
-			#autoClickerMode option {
-				background: #232937;
-				color: #aab3c7;
-			}
-
-			#extraModsHint {
-				position: fixed;
-				bottom: 10px;
-				right: 14px;
-				font-family: "JetBrains Mono", monospace;
-				font-size: 11px;
-				color: rgba(170,179,199,0.55);
-				z-index: 999998;
-				pointer-events: none;
-			}
-			#extraHudBox {
-				position: fixed;
-				top: 16px;
-				left: 16px;
-				z-index: 999997;
-				font-family: "JetBrains Mono", monospace;
-				font-size: 12px;
-				color: #e1b741;
-				text-shadow: 0 0 4px rgba(0,0,0,0.8);
-				line-height: 1.6;
-				pointer-events: none;
-			}
-			
-			/* Minecraft-style Crosshair */
-			#extraCrosshair {
-				position: fixed;
-				top: 50%; 
-				left: 50%;
-				width: 16px; 
-				height: 16px;
-				margin: -8px 0 0 -8px;
-				pointer-events: none;
-				z-index: 999996;
-				display: none;
-				image-rendering: pixelated;
-				image-rendering: crisp-edges;
-			}
-			
-			#extraCrosshair canvas {
-				width: 16px;
-				height: 16px;
-				display: block;
-			}
-
-			#extraKeystrokes {
-				position: fixed;
-				bottom: 16px;
-				left: 16px;
-				z-index: 999997;
-				display: none;
-				font-family: "JetBrains Mono", monospace;
-			}
-			#extraKeystrokes .key-row { display: flex; gap: 4px; margin-bottom: 4px; }
-			#extraKeystrokes .key {
-				width: 32px; height: 32px;
-				display: flex; align-items: center; justify-content: center;
-				background: rgba(27,31,40,0.8);
-				border: 1px solid #2f3647;
-				border-radius: 4px;
-				color: #aab3c7;
-				font-size: 12px;
-			}
-			#extraKeystrokes .key.active { background: rgba(225,183,65,0.28); border-color: #e1b741; color: #e1b741; }
-		</style>
 	</head>
 	<body style="margin:0px;width:100%;height:100%;overflow:hidden;background-color:black;" id="game_frame">
 		<div id="extraModsPanel">
@@ -335,243 +517,5 @@
 			<div class="key-row"><div class="key" id="ek-w">W</div></div>
 			<div class="key-row"><div class="key" id="ek-a">A</div><div class="key" id="ek-s">S</div><div class="key" id="ek-d">D</div></div>
 		</div>
-
-		<script>
-		(function() {
-			"use strict";
-			var state = { fps:false, cps:false, clock:false, crosshair:false, fullbright:false, keystrokes:false, zoom:false, autoclicker:false };
-			var panel = document.getElementById("extraModsPanel");
-			var crosshairEl = document.getElementById("extraCrosshair");
-			var keysEl = document.getElementById("extraKeystrokes");
-			var hud = document.getElementById("extraHudBox");
-			var autoClickerSettings = document.getElementById("autoClickerSettings");
-			var autoClickerInput = document.getElementById("autoClickerInput");
-			var autoClickerVariance = document.getElementById("autoClickerVariance");
-			var autoClickerMode = document.getElementById("autoClickerMode");
-			var autoClickInterval = null;
-			var crosshairCanvas = null;
-			var crosshairCtx = null;
-
-			function getCanvas() {
-				return document.querySelector("._eaglercraftX_canvas_element") || document.querySelector("canvas");
-			}
-
-			// Initialize Crosshair Canvas
-			function initCrosshair() {
-				if (crosshairCanvas) return;
-				crosshairCanvas = document.createElement("canvas");
-				crosshairCanvas.width = 16;
-				crosshairCanvas.height = 16;
-				crosshairCtx = crosshairCanvas.getContext("2d");
-				crosshairEl.appendChild(crosshairCanvas);
-				drawCrosshair();
-			}
-
-			// Draw Minecraft-style Crosshair
-			function drawCrosshair() {
-				if (!crosshairCtx) return;
-				
-				crosshairCtx.clearRect(0, 0, 16, 16);
-				
-				// Color: white with slightly transparent
-				crosshairCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
-				crosshairCtx.strokeStyle = "rgba(0, 0, 0, 0.8)";
-				crosshairCtx.lineWidth = 1;
-				
-				// Draw crosshair like Minecraft (4 bars around center)
-				// Top bar
-				crosshairCtx.fillRect(7, 1, 2, 3);
-				// Bottom bar
-				crosshairCtx.fillRect(7, 12, 2, 3);
-				// Left bar
-				crosshairCtx.fillRect(1, 7, 3, 2);
-				// Right bar
-				crosshairCtx.fillRect(12, 7, 3, 2);
-				
-				// Center dot (optional, Minecraft has it)
-				crosshairCtx.fillRect(7, 7, 2, 2);
-				
-				// Draw outline for better visibility
-				crosshairCtx.strokeRect(7, 1, 2, 3);
-				crosshairCtx.strokeRect(7, 12, 2, 3);
-				crosshairCtx.strokeRect(1, 7, 3, 2);
-				crosshairCtx.strokeRect(12, 7, 3, 2);
-				crosshairCtx.strokeRect(7, 7, 2, 2);
-			}
-
-			panel.querySelectorAll(".switch").forEach(function(sw) {
-				sw.addEventListener("click", function() {
-					var mod = sw.getAttribute("data-mod");
-					state[mod] = !state[mod];
-					sw.classList.toggle("on", state[mod]);
-					applyMod(mod, state[mod]);
-				});
-			});
-
-			function applyMod(mod, on) {
-				if (mod === "crosshair") {
-					if (on) {
-						initCrosshair();
-						crosshairEl.style.display = "block";
-					} else {
-						crosshairEl.style.display = "none";
-					}
-				}
-				if (mod === "keystrokes") keysEl.style.display = on ? "block" : "none";
-				if (mod === "fullbright") {
-					var c = getCanvas();
-					if (c) c.style.filter = on ? "brightness(1.6) contrast(1.05)" : "";
-				}
-				if (mod === "autoclicker") {
-					autoClickerSettings.style.display = on ? "block" : "none";
-					if (on) startAutoClicker();
-					else stopAutoClicker();
-				}
-			}
-
-			function getRandomizedInterval() {
-				var baseCps = parseInt(autoClickerInput.value) || 10;
-				var variance = parseInt(autoClickerVariance.value) || 15;
-				
-				var varianceRange = (variance / 100) * baseCps;
-				var randomCps = baseCps + (Math.random() * 2 - 1) * varianceRange;
-				randomCps = Math.max(1, randomCps);
-				
-				return 1000 / randomCps;
-			}
-
-			function performClick() {
-				var canvas = getCanvas();
-				if (canvas) {
-					var button = autoClickerMode.value === "right" ? 2 : 0;
-					
-					var evt = new MouseEvent("mousedown", {
-						bubbles: true,
-						cancelable: true,
-						view: window,
-						clientX: canvas.width / 2,
-						clientY: canvas.height / 2,
-						button: button
-					});
-					canvas.dispatchEvent(evt);
-					setTimeout(function() {
-						var evtUp = new MouseEvent("mouseup", {
-							bubbles: true,
-							cancelable: true,
-							view: window,
-							clientX: canvas.width / 2,
-							clientY: canvas.height / 2,
-							button: button
-						});
-						canvas.dispatchEvent(evtUp);
-					}, 10);
-				}
-			}
-
-			function scheduleNextClick() {
-				if (!state.autoclicker) return;
-				
-				var delay = getRandomizedInterval();
-				autoClickInterval = setTimeout(function() {
-					performClick();
-					scheduleNextClick();
-				}, delay);
-			}
-
-			function startAutoClicker() {
-				stopAutoClicker();
-				performClick();
-				scheduleNextClick();
-			}
-
-			function stopAutoClicker() {
-				if (autoClickInterval) {
-					clearTimeout(autoClickInterval);
-					autoClickInterval = null;
-				}
-			}
-
-			autoClickerInput.addEventListener("change", function() {
-				if (state.autoclicker) {
-					stopAutoClicker();
-					startAutoClicker();
-				}
-			});
-
-			autoClickerVariance.addEventListener("change", function() {
-				if (state.autoclicker) {
-					stopAutoClicker();
-					startAutoClicker();
-				}
-			});
-
-			autoClickerMode.addEventListener("change", function() {
-				if (state.autoclicker) {
-					stopAutoClicker();
-					startAutoClicker();
-				}
-			});
-
-			// K 键打开/关闭额外模组面板
-			window.addEventListener("keydown", function(e) {
-				if ((e.key === "k" || e.key === "K") && !e.repeat) {
-					panel.classList.toggle("open");
-				}
-				if (state.keystrokes) {
-					var k = e.key.toLowerCase();
-					var el = document.getElementById("ek-" + k);
-					if (el) el.classList.add("active");
-				}
-				if (e.key === "z" || e.key === "Z") zHeld = true;
-			});
-			window.addEventListener("keyup", function(e) {
-				var k = e.key.toLowerCase();
-				var el = document.getElementById("ek-" + k);
-				if (el) el.classList.remove("active");
-				if (e.key === "z" || e.key === "Z") zHeld = false;
-			});
-
-			// CPS 计数
-			var clicks = 0, cpsDisplay = 0;
-			window.addEventListener("mousedown", function() { clicks++; });
-			setInterval(function() { cpsDisplay = clicks; clicks = 0; }, 1000);
-
-			// FPS 计数
-			var frames = 0, fpsDisplay = 0, lastFpsTime = performance.now();
-			function fpsLoop() {
-				frames++;
-				var now = performance.now();
-				if (now - lastFpsTime >= 1000) {
-					fpsDisplay = frames;
-					frames = 0;
-					lastFpsTime = now;
-				}
-				requestAnimationFrame(fpsLoop);
-			}
-			requestAnimationFrame(fpsLoop);
-
-			// HUD 渲染循环
-			function renderHud() {
-				var lines = [];
-				if (state.fps) lines.push("FPS: " + fpsDisplay);
-				if (state.cps) lines.push("CPS: " + cpsDisplay);
-				if (state.clock) lines.push(new Date().toLocaleTimeString());
-				hud.innerHTML = lines.join("<br>");
-				requestAnimationFrame(renderHud);
-			}
-			requestAnimationFrame(renderHud);
-
-			// 按住 Z 滚动鼠标滚轮进行视觉缩放（仅缩放画面，不影响实际游戏视角）
-			var zHeld = false, zoomLevel = 1;
-			window.addEventListener("wheel", function(e) {
-				if (!state.zoom || !zHeld) return;
-				e.preventDefault();
-				zoomLevel += (e.deltaY < 0 ? 0.1 : -0.1);
-				zoomLevel = Math.max(1, Math.min(4, zoomLevel));
-				var c = getCanvas();
-				if (c) c.style.transform = "scale(" + zoomLevel + ")";
-			}, { passive: false });
-		})();
-		</script>
 	</body>
 </html>
