@@ -181,8 +181,8 @@
 					};
 					main();
 					
-					// Initialize mods system after a short delay
-					setTimeout(initModsSystem, 100);
+					// Initialize mods system with longer delay to ensure game is loaded
+					setTimeout(initModsSystem, 500);
 				}
 			});
 
@@ -343,17 +343,27 @@
 					}
 				});
 
+				// KEY EVENT LISTENER - GLOBAL AND RELIABLE
 				document.addEventListener("keydown", function(e) {
+					// Handle K key for panel toggle
 					if ((e.key === "k" || e.key === "K") && !e.repeat) {
 						e.preventDefault();
 						e.stopPropagation();
-						if (panel) panel.classList.toggle("open");
+						if (panel) {
+							panel.classList.toggle("open");
+							console.log("Panel toggled:", panel.classList.contains("open"));
+						}
+						return false;
 					}
+					
+					// Handle keystrokes display
 					if (state.keystrokes) {
 						var k = e.key.toLowerCase();
 						var el = document.getElementById("ek-" + k);
 						if (el) el.classList.add("active");
 					}
+					
+					// Handle zoom
 					if (e.key === "z" || e.key === "Z") window.zHeld = true;
 				}, true);
 
@@ -400,6 +410,8 @@
 					var c = getCanvas();
 					if (c) c.style.transform = "scale(" + zoomLevel + ")";
 				}, { passive: false, capture: true });
+				
+				console.log("Mods system initialized successfully");
 			}
 		</script>
 	</head>
