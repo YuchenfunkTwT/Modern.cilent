@@ -217,6 +217,28 @@
 				color: #e1b741;
 			}
 
+			#autoClickerMode {
+				width: 100%;
+				padding: 4px;
+				background: #232937;
+				border: 1px solid #2f3647;
+				border-radius: 4px;
+				color: #aab3c7;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 11px;
+				margin-top: 4px;
+				box-sizing: border-box;
+			}
+			#autoClickerMode:focus {
+				outline: none;
+				border-color: #e1b741;
+				color: #e1b741;
+			}
+			#autoClickerMode option {
+				background: #232937;
+				color: #aab3c7;
+			}
+
 			#extraModsHint {
 				position: fixed;
 				bottom: 10px;
@@ -294,7 +316,12 @@
 			<div class="mod-row"><span class="mod-name">Zoom (hold Z + scroll)</span><div class="switch" data-mod="zoom"></div></div>
 			<div class="mod-row"><span class="mod-name">Auto Clicker</span><div class="switch" data-mod="autoclicker"></div></div>
 			<div id="autoClickerSettings" style="display:none;padding-top:8px;border-top:1px solid #2f3647;margin-top:8px;">
-				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;">Base CPS:</div>
+				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;">Click Mode:</div>
+				<select id="autoClickerMode">
+					<option value="left">Left Click</option>
+					<option value="right">Right Click</option>
+				</select>
+				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;margin-top:8px;">Base CPS:</div>
 				<input type="number" id="autoClickerInput" value="10" min="1" max="100" />
 				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;margin-top:8px;">Variance (%):</div>
 				<input type="number" id="autoClickerVariance" value="15" min="0" max="50" />
@@ -320,6 +347,7 @@
 			var autoClickerSettings = document.getElementById("autoClickerSettings");
 			var autoClickerInput = document.getElementById("autoClickerInput");
 			var autoClickerVariance = document.getElementById("autoClickerVariance");
+			var autoClickerMode = document.getElementById("autoClickerMode");
 			var autoClickInterval = null;
 			var crosshairCanvas = null;
 			var crosshairCtx = null;
@@ -415,12 +443,15 @@
 			function performClick() {
 				var canvas = getCanvas();
 				if (canvas) {
+					var button = autoClickerMode.value === "right" ? 2 : 0;
+					
 					var evt = new MouseEvent("mousedown", {
 						bubbles: true,
 						cancelable: true,
 						view: window,
 						clientX: canvas.width / 2,
-						clientY: canvas.height / 2
+						clientY: canvas.height / 2,
+						button: button
 					});
 					canvas.dispatchEvent(evt);
 					setTimeout(function() {
@@ -429,7 +460,8 @@
 							cancelable: true,
 							view: window,
 							clientX: canvas.width / 2,
-							clientY: canvas.height / 2
+							clientY: canvas.height / 2,
+							button: button
 						});
 						canvas.dispatchEvent(evtUp);
 					}, 10);
@@ -467,6 +499,13 @@
 			});
 
 			autoClickerVariance.addEventListener("change", function() {
+				if (state.autoclicker) {
+					stopAutoClicker();
+					startAutoClicker();
+				}
+			});
+
+			autoClickerMode.addEventListener("change", function() {
 				if (state.autoclicker) {
 					stopAutoClicker();
 					startAutoClicker();
