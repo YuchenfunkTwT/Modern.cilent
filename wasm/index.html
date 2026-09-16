@@ -239,18 +239,27 @@
 				line-height: 1.6;
 				pointer-events: none;
 			}
+			
+			/* Minecraft-style Crosshair */
 			#extraCrosshair {
 				position: fixed;
-				top: 50%; left: 50%;
-				width: 14px; height: 14px;
-				margin: -7px 0 0 -7px;
+				top: 50%; 
+				left: 50%;
+				width: 16px; 
+				height: 16px;
+				margin: -8px 0 0 -8px;
 				pointer-events: none;
-				z-index: 999997;
+				z-index: 999996;
 				display: none;
+				image-rendering: pixelated;
+				image-rendering: crisp-edges;
 			}
-			#extraCrosshair::before, #extraCrosshair::after { content: ""; position: absolute; background: #e1b741; }
-			#extraCrosshair::before { top: 6px; left: 0; width: 14px; height: 2px; }
-			#extraCrosshair::after { left: 6px; top: 0; width: 2px; height: 14px; }
+			
+			#extraCrosshair canvas {
+				width: 16px;
+				height: 16px;
+				display: block;
+			}
 
 			#extraKeystrokes {
 				position: fixed;
@@ -312,9 +321,54 @@
 			var autoClickerInput = document.getElementById("autoClickerInput");
 			var autoClickerVariance = document.getElementById("autoClickerVariance");
 			var autoClickInterval = null;
+			var crosshairCanvas = null;
+			var crosshairCtx = null;
 
 			function getCanvas() {
 				return document.querySelector("._eaglercraftX_canvas_element") || document.querySelector("canvas");
+			}
+
+			// Initialize Crosshair Canvas
+			function initCrosshair() {
+				if (crosshairCanvas) return;
+				crosshairCanvas = document.createElement("canvas");
+				crosshairCanvas.width = 16;
+				crosshairCanvas.height = 16;
+				crosshairCtx = crosshairCanvas.getContext("2d");
+				crosshairEl.appendChild(crosshairCanvas);
+				drawCrosshair();
+			}
+
+			// Draw Minecraft-style Crosshair
+			function drawCrosshair() {
+				if (!crosshairCtx) return;
+				
+				crosshairCtx.clearRect(0, 0, 16, 16);
+				
+				// Color: white with slightly transparent
+				crosshairCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
+				crosshairCtx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+				crosshairCtx.lineWidth = 1;
+				
+				// Draw crosshair like Minecraft (4 bars around center)
+				// Top bar
+				crosshairCtx.fillRect(7, 1, 2, 3);
+				// Bottom bar
+				crosshairCtx.fillRect(7, 12, 2, 3);
+				// Left bar
+				crosshairCtx.fillRect(1, 7, 3, 2);
+				// Right bar
+				crosshairCtx.fillRect(12, 7, 3, 2);
+				
+				// Center dot (optional, Minecraft has it)
+				crosshairCtx.fillRect(7, 7, 2, 2);
+				
+				// Draw outline for better visibility
+				crosshairCtx.strokeRect(7, 1, 2, 3);
+				crosshairCtx.strokeRect(7, 12, 2, 3);
+				crosshairCtx.strokeRect(1, 7, 3, 2);
+				crosshairCtx.strokeRect(12, 7, 3, 2);
+				crosshairCtx.strokeRect(7, 7, 2, 2);
 			}
 
 			panel.querySelectorAll(".switch").forEach(function(sw) {
@@ -327,7 +381,14 @@
 			});
 
 			function applyMod(mod, on) {
-				if (mod === "crosshair") crosshairEl.style.display = on ? "block" : "none";
+				if (mod === "crosshair") {
+					if (on) {
+						initCrosshair();
+						crosshairEl.style.display = "block";
+					} else {
+						crosshairEl.style.display = "none";
+					}
+				}
 				if (mod === "keystrokes") keysEl.style.display = on ? "block" : "none";
 				if (mod === "fullbright") {
 					var c = getCanvas();
@@ -344,12 +405,9 @@
 				var baseCps = parseInt(autoClickerInput.value) || 10;
 				var variance = parseInt(autoClickerVariance.value) || 15;
 				
-				// 将 variance (%) 转换为实际范围
 				var varianceRange = (variance / 100) * baseCps;
-				
-				// 生成 -variance 到 +variance 之间的随机数
 				var randomCps = baseCps + (Math.random() * 2 - 1) * varianceRange;
-				randomCps = Math.max(1, randomCps); // 确保最小为 1 CPS
+				randomCps = Math.max(1, randomCps);
 				
 				return 1000 / randomCps;
 			}
