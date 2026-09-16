@@ -199,6 +199,24 @@
 				color: #e1b741;
 			}
 
+			#autoClickerVariance {
+				width: 100%;
+				padding: 4px;
+				background: #232937;
+				border: 1px solid #2f3647;
+				border-radius: 4px;
+				color: #aab3c7;
+				font-family: "JetBrains Mono", monospace;
+				font-size: 11px;
+				margin-top: 4px;
+				box-sizing: border-box;
+			}
+			#autoClickerVariance:focus {
+				outline: none;
+				border-color: #e1b741;
+				color: #e1b741;
+			}
+
 			#extraModsHint {
 				position: fixed;
 				bottom: 10px;
@@ -267,9 +285,11 @@
 			<div class="mod-row"><span class="mod-name">Zoom (hold Z + scroll)</span><div class="switch" data-mod="zoom"></div></div>
 			<div class="mod-row"><span class="mod-name">Auto Clicker</span><div class="switch" data-mod="autoclicker"></div></div>
 			<div id="autoClickerSettings" style="display:none;padding-top:8px;border-top:1px solid #2f3647;margin-top:8px;">
-				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;">CPS:</div>
+				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;">Base CPS:</div>
 				<input type="number" id="autoClickerInput" value="10" min="1" max="100" />
-				<div style="font-size:10px;color:#888;margin-top:2px;">1-100 clicks per second</div>
+				<div style="font-size:11px;color:#aab3c7;margin-bottom:4px;margin-top:8px;">Variance (%):</div>
+				<input type="number" id="autoClickerVariance" value="15" min="0" max="50" />
+				<div style="font-size:10px;color:#888;margin-top:2px;">Adds human-like variability</div>
 			</div>
 		</div>
 		<div id="extraModsHint">Press K for Extra Mods</div>
@@ -290,6 +310,7 @@
 			var hud = document.getElementById("extraHudBox");
 			var autoClickerSettings = document.getElementById("autoClickerSettings");
 			var autoClickerInput = document.getElementById("autoClickerInput");
+			var autoClickerVariance = document.getElementById("autoClickerVariance");
 			var autoClickInterval = null;
 
 			function getCanvas() {
@@ -319,41 +340,79 @@
 				}
 			}
 
-			function startAutoClicker() {
-				stopAutoClicker();
-				var cps = parseInt(autoClickerInput.value) || 10;
-				var interval = 1000 / cps;
-				autoClickInterval = setInterval(function() {
-					var canvas = getCanvas();
-					if (canvas) {
-						var evt = new MouseEvent("mousedown", {
+			function getRandomizedInterval() {
+				var baseCps = parseInt(autoClickerInput.value) || 10;
+				var variance = parseInt(autoClickerVariance.value) || 15;
+				
+				// 将 variance (%) 转换为实际范围
+				var varianceRange = (variance / 100) * baseCps;
+				
+				// 生成 -variance 到 +variance 之间的随机数
+				var randomCps = baseCps + (Math.random() * 2 - 1) * varianceRange;
+				randomCps = Math.max(1, randomCps); // 确保最小为 1 CPS
+				
+				return 1000 / randomCps;
+			}
+
+			function performClick() {
+				var canvas = getCanvas();
+				if (canvas) {
+					var evt = new MouseEvent("mousedown", {
+						bubbles: true,
+						cancelable: true,
+						view: window,
+						clientX: canvas.width / 2,
+						clientY: canvas.height / 2
+					});
+					canvas.dispatchEvent(evt);
+					setTimeout(function() {
+						var evtUp = new MouseEvent("mouseup", {
 							bubbles: true,
 							cancelable: true,
 							view: window,
 							clientX: canvas.width / 2,
 							clientY: canvas.height / 2
 						});
-						canvas.dispatchEvent(evt);
-						setTimeout(function() {
-							var evtUp = new MouseEvent("mouseup", {
-								bubbles: true,
-								cancelable: true,
-								view: window,
-								clientX: canvas.width / 2,
-								clientY: canvas.height / 2
-							});
-							canvas.dispatchEvent(evtUp);
-						}, 10);
-					}
-				}, interval);
+						canvas.dispatchEvent(evtUp);
+					}, 10);
+				}
+			}
+
+			function scheduleNextClick() {
+				if (!state.autoclicker) return;
+				
+				var delay = getRandomizedInterval();
+				autoClickInterval = setTimeout(function() {
+					performClick();
+					scheduleNextClick();
+				}, delay);
+			}
+
+			function startAutoClicker() {
+				stopAutoClicker();
+				performClick();
+				scheduleNextClick();
 			}
 
 			function stopAutoClicker() {
-				if (autoClickInterval) clearInterval(autoClickInterval);
+				if (autoClickInterval) {
+					clearTimeout(autoClickInterval);
+					autoClickInterval = null;
+				}
 			}
 
 			autoClickerInput.addEventListener("change", function() {
-				if (state.autoclicker) startAutoClicker();
+				if (state.autoclicker) {
+					stopAutoClicker();
+					startAutoClicker();
+				}
+			});
+
+			autoClickerVariance.addEventListener("change", function() {
+				if (state.autoclicker) {
+					stopAutoClicker();
+					startAutoClicker();
+				}
 			});
 
 			// K 键打开/关闭额外模组面板
